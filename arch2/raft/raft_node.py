@@ -39,12 +39,18 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
         # Threading
         self.lock = threading.Lock()
         self.running = True
+        self.votes_received = 0
+
+        # Track acknowledgments for log replication
+        self.ack_count = {}  # {log_index: count}
+        
         
         # Start background threads
         threading.Thread(target=self.election_timer, daemon=True).start()
         threading.Thread(target=self.heartbeat_timer, daemon=True).start()
         
         print(f"Node {self.node_id} initialized as FOLLOWER")
+        print(f"Node {self.node_id} commit_index=0, last_applied=0")
     
     def get_random_election_timeout(self):
         """Random election timeout between 1.5 and 3 seconds"""
@@ -111,13 +117,16 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                         self.append_entries(request.prev_log_index, request.entries)
                         print(f"Node {self.node_id} appended {len(request.entries)} entries")
                     
-                    # Update commit index
+                    # Update commit index based on the leader 's commit
                     if request.leader_commit > self.commit_index:
+                        olf_commit = self.commit_index
                         self.commit_index = min(request.leader_commit, len(self.log))
+                        print(f"Node {self.node_id} updated commit_index from {old_commit} to {self.commit_index}")
                         self.apply_committed_entries()
             
             match_idx = len(self.log) if success else 0
             
+            # acknowledgement
             return raft_pb2.AppendEntriesResponse(
                 term=self.current_term,
                 success=success,
@@ -149,14 +158,16 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                 data=request.data
             )
             self.log.append(new_entry)
-            
             print(f"Leader {self.node_id} appended entry to log at index {new_entry.index}")
+
+            # Initialize ack count for this entry
+            self.ack_count[new_entry.index] = 1  # Count self
         
         # Replicate to followers (this will happen on next heartbeat in simplified version)
         # In full implementation, should immediately replicate
         self.replicate_log()
         
-        # Wait for majority (simplified - in real implementation use proper waiting)
+        # Wait for majority (simplified)
         time.sleep(0.5)
         
         return raft_pb2.ClientResponse(
@@ -290,7 +301,8 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
             print(f"Error requesting vote from {peer_addr}: {e}")
     
     def become_leader(self):
-        """Transition to leader state"""
+        """The node crowning is what I call this function! here is 
+        my nerdy little edit! I am awesome!!! Transition from candidate to leader state"""
         if self.state != NodeState.CANDIDATE:
             return
         
