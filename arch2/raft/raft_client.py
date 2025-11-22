@@ -14,14 +14,16 @@ class RaftClient:
     
     def find_leader(self):
         """Try each node to find the current leader"""
+        print(f"Searching for leader among {len(self.node_addresses)} nodes...")
         for addr in self.node_addresses:
             try:
+                print(f"  Trying {addr}...")
                 channel = grpc.insecure_channel(addr)
                 stub = raft_pb2_grpc.RaftServiceStub(channel)
                 
-                # Send a dummy request to check if it's the leader
+                # Send a test request to check if it's the leader
                 request = raft_pb2.ClientRequestMsg(
-                    operation="ping",
+                    operation="test",
                     filename="",
                     username="",
                     data=b""
@@ -29,16 +31,36 @@ class RaftClient:
                 
                 response = stub.ClientRequest(request, timeout=2.0)
                 
-                if response.success or response.leader_id:
-                    self.current_leader = addr if response.success else response.leader_id
+                if response.success:
+                    # This node is the leader
+                    print(f"  ✓ Found leader: {addr}")
+                    self.current_leader = addr
+                    channel.close()
+                    return self.current_leader
+                elif response.leader_id and response.leader_id != "unknown":
+                    # This node told us who the leader is
+                    print(f"  → Redirected to: {response.leader_id}")
+                    # Find the full address with port
+                    for node_addr in self.node_addresses:
+                        if response.leader_id in node_addr:
+                            self.current_leader = node_addr
+                            channel.close()
+                            return self.current_leader
+                    # If not found in list, add port manually
+                    self.current_leader = f"{response.leader_id}:50051"
                     channel.close()
                     return self.current_leader
                 
                 channel.close()
-                
+
+            except grpc.RpcError as e:
+                print(f"  ✗ Error contacting {addr}: {e.code()}")
+                continue    
             except Exception as e:
+                print(f"  ✗ Error contacting {addr}: {e}")
                 continue
         
+        print("  ✗ Could not find leader")
         return None
     
     def send_request(self, operation, filename, username="testuser", data=b""):
@@ -81,11 +103,20 @@ class RaftClient:
                     print(f"\n✗ Request failed: {response.message}")
                     if response.leader_id:
                         print(f"Redirected to leader: {response.leader_id}")
-                        self.current_leader = response.leader_id
-                        retry_count += 1
-                        continue
+                        for addr in self.node_addresses:
+                            if response.leader_id in addr:
+                                self.current_leader = addr
+                                break
+                        else:
+                            # Couldn't find, add port manually
+                            self.current_leader = f"{response.leader_id}:50051"
+                    else:
+                        self.current_leader = None
+
+                    retry_count += 1
                     channel.close()
-                    return None
+                    time.sleep(0.5)
+                    continue
                 
             except grpc.RpcError as e:
                 print(f"RPC Error: {e}")
@@ -184,7 +215,7 @@ def interactive_mode(client):
         except Exception as e:
             print(f"Error: {e}")
 
-
+ 
 def main():
     # Get node addresses from environment or command line
     nodes_env = os.environ.get("RAFT_NODES", "")
@@ -196,7 +227,7 @@ def main():
     else:
         # Default addresses
         node_addresses = [
-            "raft-node-0:50051",
+            "raft-node-0:50051",    
             "raft-node-1:50051",
             "raft-node-2:50051",
             "raft-node-3:50051",
