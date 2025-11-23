@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # Client (unchanged)
+  client:
+    build: ./client
+    depends_on:
+      - upload
+      - download
+    environment:
+      - UPLOAD_URL=http://upload:5003
+      - DOWNLOAD_URL=http://download:5004
+    volumes:
+      - ./client:/app
+    networks:
+      - mini-dropbox-network
+    stdin_open: true
+    tty: true
+
+  # Upload service (unchanged)
+  upload:
+    build: ./services/upload
+    ports:
+      - "5003:5003"
+    depends_on:
+      - storage
+      - metadata-gateway
+    environment:
+      - METADATA_API=http://metadata-gateway:5005
+      - STORAGE_API=http://storage:5006
+    networks:
+      - mini-dropbox-network
+
+  # Download service (unchanged)
+  download:
+    build: ./services/download
+    ports:
+      - "5004:5004"
+    depends_on:
+      - storage
+      - metadata-gateway
+    environment:
+      - METADATA_API=http://metadata-gateway:5005
+      - STORAGE_API=http://storage:5006
+    networks:
+      - mini-dropbox-network
+
+  # Metadata HTTP Gateway (NEW - replaces old metadata)
+  metadata-gateway:
+    build:
+      context: ./metadata-raft
+      dockerfile: Dockerfile.gateway
+    environment:
+      - METADATA_NODES=metadata-raft-0:50051,metadata-raft-1:50051,metadata-raft-2:50051,metadata-raft-3:50051,metadata-raft-4:50051
+    ports:
+      - "5005:5005"
+    depends_on:
+      - metadata-raft-0
+      - metadata-raft-1
+      - metadata-raft-2
+      - metadata-raft-3
+      - metadata-raft-4
+    networks:
+      - mini-dropbox-network
+
+  # Metadata Raft Cluster (5 nodes)
+  metadata-raft-0:
+    build:
+      context: ./metadata-raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=metadata-0
+      - PORT=50051
+      - PEERS=metadata-raft-1:50051,metadata-raft-2:50051,metadata-raft-3:50051,metadata-raft-4:50051
+    networks:
+      - mini-dropbox-network
+
+  metadata-raft-1:
+    build:
+      context: ./metadata-raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=metadata-1
+      - PORT=50051
+      - PEERS=metadata-raft-0:50051,metadata-raft-2:50051,metadata-raft-3:50051,metadata-raft-4:50051
+    networks:
+      - mini-dropbox-network
+
+  metadata-raft-2:
+    build:
+      context: ./metadata-raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=metadata-2
+      - PORT=50051
+      - PEERS=metadata-raft-0:50051,metadata-raft-1:50051,metadata-raft-3:50051,metadata-raft-4:50051
+    networks:
+      - mini-dropbox-network
+
+  metadata-raft-3:
+    build:
+      context: ./metadata-raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=metadata-3
+      - PORT=50051
+      - PEERS=metadata-raft-0:50051,metadata-raft-1:50051,metadata-raft-2:50051,metadata-raft-4:50051
+    networks:
+      - mini-dropbox-network
+
+  metadata-raft-4:
+    build:
+      context: ./metadata-raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=metadata-4
+      - PORT=50051
+      - PEERS=metadata-raft-0:50051,metadata-raft-1:50051,metadata-raft-2:50051,metadata-raft-3:50051
+    networks:
+      - mini-dropbox-network
+
+  # Storage (unchanged)
+  storage:
+    build: ./storage
+    volumes:
+      - storage_data:/storage
+    ports:
+      - "5006:5006"
+    networks:
+      - mini-dropbox-network
+
+  # Backup (unchanged)
+  backup:
+    build: ./backup
+    volumes:
+      - storage_data:/storage
+      - backup_data:/backup
+    networks:
+      - mini-dropbox-network
+
+networks:
+  mini-dropbox-network:
+    driver: bridge
+
+volumes:
+  storage_data:
+  backup_data:

@@ -1,8 +1,25 @@
 if pip install grpcio-tools in not working, this might do the trick:
 pip install grpcio==1.60.0 grpcio-tools==1.60.0 protobuf==4.25.1
 
+# grpc tools are not installed locally, loaded by docker build therefore
+# the buffer files are created upon docker build 
 
 Running raft:
 
 docker-compose -f docker-compose-raft.yml build
 docker-compose -f docker-compose-raft.yml up
+
+docker exec -it arch2-raft-client-1 sh
+
+
+# check if proto files exist in client container:
+docker exec arch2-raft-client-1 ls -la
+docker exec arch2-raft-client-1 ls -la raft_pb2.py
+
+
+
+docker exec -it arch2-raft-client-1 python raft_client.py upload partition_test.txt
+
+
+
+docker-compose -f docker-compose-integrated.yml logs | grep "became LEADER"

@@ -7,7 +7,9 @@ import requests, os
 
 app = Flask(__name__)
 
-METADATA_API = "http://metadata:5005" # metadata service URL
+# METADATA_API = "http://metadata:5005" # metadata service URL
+
+METADATA_API = os.environ.get("METADATA_API", "http://metadata-gateway:5005")
 STORAGE_API = "http://storage:5006" # storage service URL
 SECRET_KEY = os.environ.get("SECRET_KEY", "supersecretkey") # secret key for JWT - in more secure setup, use env variable
 
