@@ -1,0 +1,38 @@
+#Test1
+#Test2
+#Test3
+#Test4
+
+
+
+
+
+###- Test5 -###
+
+# 1. Fresh start
+docker-compose -f docker-compose-raft.yml down
+docker-compose -f docker-compose-raft.yml up -d
+
+# 2. Wait for stable leader
+sleep 5
+
+# 3. Stop 2 nodes (not the leader)
+docker stop arch2-raft-node-3-1
+docker stop arch2-raft-node-4-1
+
+# 4. Upload file (should work with 3/5)
+docker exec -it arch2-raft-client-1 python raft_client.py upload recovery_test.txt
+
+# 5. Verify 3 nodes have it
+docker logs arch2-raft-node-0-1 | grep "recovery_test"
+docker logs arch2-raft-node-1-1 | grep "recovery_test"  
+docker logs arch2-raft-node-2-1 | grep "recovery_test"
+
+# 6. Restart the stopped nodes
+docker start arch2-raft-node-3-1
+docker start arch2-raft-node-4-1
+
+# 7. Wait and check they catch up
+sleep 10
+docker logs arch2-raft-node-3-1 | grep "recovery_test"
+docker logs arch2-raft-node-4-1 | grep "recovery_test"

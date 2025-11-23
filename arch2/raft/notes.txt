@@ -23,3 +23,5 @@ docker exec -it arch2-raft-client-1 python raft_client.py upload partition_test.
 
 
 docker-compose -f docker-compose-integrated.yml logs | grep "became LEADER"
+
+docker exec -it arch2-raft-client-1 sh

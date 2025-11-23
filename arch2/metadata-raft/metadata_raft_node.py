@@ -718,9 +718,9 @@ class MetadataRaftNode(RaftNode, metadata_pb2_grpc.MetadataServiceServicer):
                 
                 elif entry.operation == "add_user":
                     self.users[entry.username] = data['password']
-                    print(f"Node {self.node_id} applied: ADD_USERR {entry.username}")
+                    print(f"Node {self.node_id} applied: ADD_USER {entry.username}")
                 else:
-                    # entry operation not supported
+                    # should never pass here..entry operation not supported
                     print(f"Node {self.node_id} tried to apply: NON-EXISTING REQUEST for {entry.username}")
                 
             except Exception as e:
