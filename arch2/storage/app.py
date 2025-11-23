@@ -5,7 +5,8 @@ import requests
 app = Flask(__name__)
 
 STORAGE_PATH = "/storage"
-METADATA_API = "http://metadata:5005/files"
+# METADATA_API = "http://metadata:5005/files"
+METADATA_API = os.environ.get("METADATA_API", "http://metadata-gateway:5005") + "/files"
 
 os.makedirs(STORAGE_PATH, exist_ok=True)
 
@@ -35,6 +36,7 @@ def upload_file():
 
     # Build metadata
     size = os.path.getsize(save_path)
+    print("Saving file to metadata...")
     metadata = {
         "filename": f.filename,
         "path": save_path,
@@ -94,6 +96,7 @@ def delete_file():
 
     # Fetch metadata
     try:
+        print("Going to metadata gateway for deletion")
         r = requests.get(f"{METADATA_API}/{filename}")
         r.raise_for_status()
         metadata = r.json()
@@ -109,7 +112,9 @@ def delete_file():
         file_path = metadata["path"]
         if os.path.exists(file_path):
             os.remove(file_path)
+            print("Permanent storage deletion applied")
     except Exception as e:
+        print("Issue with deep delete")
         return jsonify({"error": f"Failed to delete file: {e}"}), 500
 
     # Delete metadata
@@ -118,7 +123,7 @@ def delete_file():
         r.raise_for_status()
     except Exception as e:
         return jsonify({"error": f"Failed to delete metadata: {e}"}), 500
-
+    print("Deleted from metadata...")
     return jsonify({"status": "deleted"}), 200
 
 # ---------------- Main ----------------

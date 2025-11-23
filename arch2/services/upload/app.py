@@ -3,11 +3,12 @@ import jwt
 import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, request, jsonify, Response
-import requests, os
+import requests
 
 app = Flask(__name__)
 
-METADATA_API = "http://metadata:5005" # metadata service URL
+# METADATA_API = "http://metadata:5005" # metadata service URL
+METADATA_API = os.environ.get("METADATA_API", "http://metadata-gateway:5005")
 STORAGE_API = "http://storage:5006" # storage service URL
 SECRET_KEY = os.environ.get("SECRET_KEY", "supersecretkey") # secret key for JWT - in more secure setup, use env variable
 
@@ -51,13 +52,18 @@ def signup():
             "password": hashed_password
         })
 
+        print(f"Metadata response status: {resp.status_code}")
+        print(f"Metadata response body: {resp.text}")
         # check response from metadata service
         if resp.status_code == 201:
             return jsonify({"message": "Signup successful!"}), 201
         elif resp.status_code == 409:
             return jsonify({"error": "Username already exists"}), 409
+
+        elif resp.status_code == 500:
+            return jsonify({"error": "Metadata actual service error"}), 500
         else:
-            return jsonify({"error": "Metadata service error"}), 500
+            return jsonify({"error": "Metadata unknown service error"}), 800
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -84,6 +90,7 @@ def login():
         user = resp.json()
         stored_hash = user.get("password")
         if stored_hash and check_password_hash(stored_hash, password):
+        # if stored_hash and stored_hash == password:  # Direct comparison
             token = encode_token(username)
 
             # store the token in the user's session
@@ -129,7 +136,8 @@ def upload():
 
     # check response from storage service
     if resp.status_code != 200:
-        return jsonify({"error": "Storage error"}), 500
+        print("Response received in upload not good. See metadata")
+        return jsonify({"error": "Storage Error"}), 500
 
     try:
         return resp.json(), resp.status_code

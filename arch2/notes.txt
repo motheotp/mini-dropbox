@@ -1,0 +1,10 @@
+# at least 5 nodes for 2PC
+5 test cases for raft:
+        Initial leader election
+        Leader failure and re-election
+        Log replication with client requests
+        Network partition recovery
+        New node joining cluster
+
+# Screenshots
+

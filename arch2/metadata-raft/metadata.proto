@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package metadata;
+
+service MetadataService {
+  // File operations
+  rpc AddFile(AddFileRequest) returns (AddFileResponse);
+  rpc GetFile(GetFileRequest) returns (GetFileResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  
+  // User operations
+  rpc AddUser(AddUserRequest) returns (AddUserResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+// File messages
+message AddFileRequest {
+  string filename = 1;
+  string path = 2;
+  int64 size = 3;
+  int32 version = 4;
+  string user = 5;
+  string password = 6;
+}
+
+message AddFileResponse {
+  bool success = 1;
+  string message = 2;
+  FileMetadata metadata = 3;
+  string leader_id = 4;
+}
+
+message GetFileRequest {
+  string filename = 1;
+}
+
+message GetFileResponse {
+  bool success = 1;
+  FileMetadata metadata = 2;
+}
+
+message DeleteFileRequest {
+  string filename = 1;
+}
+
+message DeleteFileResponse {
+  bool success = 1;
+  string message = 2;
+  string leader_id = 4;
+}
+
+message ListFilesRequest {
+}
+
+message ListFilesResponse {
+  repeated FileMetadata files = 1;
+}
+
+message FileMetadata {
+  string filename = 1;
+  string path = 2;
+  int64 size = 3;
+  int32 version = 4;
+  string user = 5;
+  string password = 6;
+}
+
+// User messages
+message AddUserRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AddUserResponse {
+  bool success = 1;
+  string message = 2;
+  string leader_id = 3;  
+}
+
+message GetUserRequest {
+  string username = 1;
+}
+
+message GetUserResponse {
+  bool success = 1;
+  string username = 2;
+  string password = 3;
+}

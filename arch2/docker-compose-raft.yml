@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  raft-node-0:
+    build:
+      context: ./raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=node-0
+      - PORT=50051
+      - PEERS=raft-node-1:50051,raft-node-2:50051,raft-node-3:50051,raft-node-4:50051
+    networks:
+      - raft-network
+    ports:
+      - "50061:50051"
+
+  raft-node-1:
+    build:
+      context: ./raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=node-1
+      - PORT=50051
+      - PEERS=raft-node-0:50051,raft-node-2:50051,raft-node-3:50051,raft-node-4:50051
+    networks:
+      - raft-network
+    ports:
+      - "50062:50051"
+
+  raft-node-2:
+    build:
+      context: ./raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=node-2
+      - PORT=50051
+      - PEERS=raft-node-0:50051,raft-node-1:50051,raft-node-3:50051,raft-node-4:50051
+    networks:
+      - raft-network
+    ports:
+      - "50063:50051"
+
+  raft-node-3:
+    build:
+      context: ./raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=node-3
+      - PORT=50051
+      - PEERS=raft-node-0:50051,raft-node-1:50051,raft-node-2:50051,raft-node-4:50051
+    networks:
+      - raft-network
+    ports:
+      - "50064:50051"
+
+  raft-node-4:
+    build:
+      context: ./raft
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ID=node-4
+      - PORT=50051
+      - PEERS=raft-node-0:50051,raft-node-1:50051,raft-node-2:50051,raft-node-3:50051
+    networks:
+      - raft-network
+    ports:
+      - "50065:50051"
+
+  raft-client:
+    build:
+      context: ./raft
+      dockerfile: Dockerfile.client
+    environment:
+      - RAFT_NODES=raft-node-0:50051,raft-node-1:50051,raft-node-2:50051,raft-node-3:50051,raft-node-4:50051
+    networks:
+      - raft-network
+    stdin_open: true
+    tty: true
+    depends_on:
+      - raft-node-0
+      - raft-node-1
+      - raft-node-2
+      - raft-node-3
+      - raft-node-4
+
+networks:
+  raft-network:
+    driver: bridge
