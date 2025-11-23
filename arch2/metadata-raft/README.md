@@ -200,6 +200,33 @@ arch2/
 ├── docker-compose-integrated.yml
 └── README.md
 
+
+## Most important files:
+
+1. metadata-raft-gateway (The Front Door)
+This Flask application acts as the API Gateway for all metadata requests from upload and download. It's the layer that external services (like your Upload service) communicate with.
+-   API ABSTRACTION : Converts standard HTTP requests (RESTful JSON) into internal gRPC calls expected by the Raft nodes.
+-   CLUSTER CONNECTION:  Manages the connection to the underlying Raft cluster nodes.
+-   TRAFFIC ROUTING: It is not aware of the Raft leader directly but forwards the request to one of the nodes. The gRPC logic often handles redirection if the contacted node is not the leader.
+
+-   ERROR HANDLING: Translates gRPC connection failures or Raft consensus errors (like "Not the leader") back into standard HTTP status codes (e.g., 500, 503, 404).
+
+2. metadata-raft-node (The Consensus Engine)
+This file defines the core logic for maintaining state consistency using the Raft consensus algorithm and handles the actual storage of metadata.
+(a) Raft Node (Parent Class)
+- Manages the three states of a node: Follower, Candidate, and Leader.
+- Handles the two main Raft RPCs used for cluster agreement.
+- Stores the sequence of all operations requested by clients, ensuring every node has an identical, ordered history.
+- Provides the entry point for commands that require consensus. It ensures all write operations go through the Leader and are logged and replicated.
+
+(b) MetadataRaftNode (child)
+- Holds the actual data that the system cares about (the "truth"). The Raft protocol ensures this state is identical across all nodes.
+- Implements the gRPC service methods defined in your .proto file (e.g., metadata_pb2_grpc.MetadataServiceServicer). These are the methods the Gateway calls.
+- For write operations (AddFile, DeleteFile, AddUser), if a Follower receives a request, it forwards or redirects the request to the current Leader, as only the Leader can initiate log entries.
+- Read operations (GetFile, GetUser) are simple lookups against the local self.files or self.users dictionary. Write operations use the internal self.replicate_via_raft() (implied in the logic) to achieve consensus before applying the change
+
+
+
 # Inspecting Logs
         Election messages and heartbeat logs can be inspected via Docker logs
 ```bash
