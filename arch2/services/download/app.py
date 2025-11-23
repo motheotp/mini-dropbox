@@ -83,6 +83,7 @@ def delete_file():
     resp = requests.delete(f"{STORAGE_API}/delete", params=params)
     # check response from metadata service
     if resp.status_code == 200:
+        "Download service node receives success result for deletion.."
         return resp.json(), resp.status_code
     else:
         return jsonify({"error": "Delete error - " + resp.text}), 500

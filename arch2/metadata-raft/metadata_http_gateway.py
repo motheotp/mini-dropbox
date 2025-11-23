@@ -114,6 +114,7 @@ def get_file(filename):
 # ---------------- Delete Metadata ----------------
 @app.route("/files/<filename>", methods=["DELETE"])
 def delete_file(filename):
+    print("In gateway delete mode...fetching metadata stub")
     stub, channel = get_metadata_stub()
     if not stub:
         return jsonify({"error": "Cannot connect to metadata cluster"}), 503

@@ -487,18 +487,18 @@ class MetadataRaftNode(RaftNode, metadata_pb2_grpc.MetadataServiceServicer):
                     channel = grpc.insecure_channel(leader_addr)
                     stub = metadata_pb2_grpc.MetadataServiceStub(channel)
                     
-                    response = stub.AddUser(request, timeout=10.0)
+                    response = stub.AddFile(request, timeout=10.0)
                     channel.close()
                     return response  # Return leader's response
                     
                 except Exception as e:
                     print(f"!!! RAFT NODE {self.node_id}: Failed to forward: {e}")
-                    return metadata_pb2.AddUserResponse(
+                    return metadata_pb2.AddFileResponse(
                         success=False,
                         message=f"Failed to contact leader"
                     )
             else:
-                return metadata_pb2.AddUserResponse(
+                return metadata_pb2.AddFileResponse(
                     success=False,
                     message="No leader available"
                 )
@@ -570,18 +570,18 @@ class MetadataRaftNode(RaftNode, metadata_pb2_grpc.MetadataServiceServicer):
                     channel = grpc.insecure_channel(leader_addr)
                     stub = metadata_pb2_grpc.MetadataServiceStub(channel)
                     
-                    response = stub.AddUser(request, timeout=10.0)
+                    response = stub.DeleteFile(request, timeout=10.0)
                     channel.close()
                     return response  # Return leader's response
                     
                 except Exception as e:
                     print(f"!!! RAFT NODE {self.node_id}: Failed to forward: {e}")
-                    return metadata_pb2.AddUserResponse(
+                    return metadata_pb2.DeleteFileResponse(
                         success=False,
                         message=f"Failed to contact leader"
                     )
             else:
-                return metadata_pb2.AddUserResponse(
+                return metadata_pb2.DeleteFileResponse(
                     success=False,
                     message="No leader available"
                 )
@@ -718,7 +718,10 @@ class MetadataRaftNode(RaftNode, metadata_pb2_grpc.MetadataServiceServicer):
                 
                 elif entry.operation == "add_user":
                     self.users[entry.username] = data['password']
-                    print(f"Node {self.node_id} applied: ADD_USER {entry.username}")
+                    print(f"Node {self.node_id} applied: ADD_USERR {entry.username}")
+                else:
+                    # entry operation not supported
+                    print(f"Node {self.node_id} tried to apply: NON-EXISTING REQUEST for {entry.username}")
                 
             except Exception as e:
                 print(f"Error applying entry: {e}")
@@ -753,6 +756,7 @@ class MetadataRaftNode(RaftNode, metadata_pb2_grpc.MetadataServiceServicer):
             with self.lock:
                 if self.ack_count.get(log_index, 1) >= majority:
                     self.commit_index = log_index
+                    print("Leader has majority ack to apply committed entries")
                     self.apply_committed_entries()
                     return True
             time.sleep(0.1)
